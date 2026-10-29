@@ -2023,7 +2023,7 @@ show_header_image("beam_me_up_header.png")
 st.title("Beam Me Up")
 
 st.caption(
-    "An interactive beam analysis tool for teaching and learning structural mechanics | Version {APP_VERSION} ({APP_RELEASE_DATE})"
+    "An interactive beam analysis tool for teaching and learning structural mechanics. " f"| v{APP_VERSION} ({APP_RELEASE_DATE})"
 )
 
 with st.expander("How to use the interface", expanded=False):
