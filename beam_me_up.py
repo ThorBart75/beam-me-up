@@ -1,3 +1,5 @@
+import json
+import hashlib
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -16,49 +18,13 @@ from pathlib import Path
 # ============================================================
 
 PROFILE_CATALOGUE = {
-    # ------------------------------------------------------------
-    # Rectangular timber profiles, C24
-    # Strong-axis bending; the larger dimension is assumed as section height h
-    # Values refer to bending about the strong axis y-y:
-    # E = 11 GPa, density = 420 kg/m³
-    # A in mm², Iy in mm⁴, Wel,y in mm³
-    # ------------------------------------------------------------
-    "C24 timber 60 x 120 mm": {
-        "A_mm2": 7200.0,
-        "I_mm4": 8.640e6,
-        "W_mm3": 144.0e3,
-        "E": 11.0e9,
-        "density": 420.0,
-        "cost_per_kg": 0.80,
-    },
-    "C24 timber 80 x 160 mm": {
-        "A_mm2": 12800.0,
-        "I_mm4": 27.307e6,
-        "W_mm3": 341.333e3,
-        "E": 11.0e9,
-        "density": 420.0,
-        "cost_per_kg": 0.80,
-    },
-    "C24 timber 80 x 200 mm": {
-        "A_mm2": 16000.0,
-        "I_mm4": 53.333e6,
-        "W_mm3": 533.333e3,
-        "E": 11.0e9,
-        "density": 420.0,
-        "cost_per_kg": 0.80,
-    },
-    "C24 timber 120 x 240 mm": {
-        "A_mm2": 28800.0,
-        "I_mm4": 138.240e6,
-        "W_mm3": 1152.0e3,
-        "E": 11.0e9,
-        "density": 420.0,
-        "cost_per_kg": 0.80,
-    },
+    # ============================================================
+    # STEEL
+    # ============================================================
+
     # ------------------------------------------------------------
     # IPE profiles
-    # Values refer to bending about the strong axis y-y:
-    # A in mm², Iy in mm⁴, Wel,y in mm³
+    # Strong-axis properties
     # ------------------------------------------------------------
     "IPE 100": {
         "A_mm2": 1032.0,
@@ -100,14 +66,31 @@ PROFILE_CATALOGUE = {
         "density": 7850.0,
         "cost_per_kg": 1.50,
     },
+
     # ------------------------------------------------------------
-    # HEA profiles
-    # Older German designation: IPBl
+    # HEA profiles (older German designation: IPBl)
+    # Strong-axis properties
     # ------------------------------------------------------------
     "HEA 100 / IPBl 100": {
         "A_mm2": 2124.0,
         "I_mm4": 3.492e6,
         "W_mm3": 72.76e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+    "HEA 120 / IPBl 120": {
+        "A_mm2": 2530.0,
+        "I_mm4": 6.060e6,
+        "W_mm3": 106.0e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+    "HEA 140 / IPBl 140": {
+        "A_mm2": 3140.0,
+        "I_mm4": 10.30e6,
+        "W_mm3": 155.0e3,
         "E": 210e9,
         "density": 7850.0,
         "cost_per_kg": 1.50,
@@ -120,10 +103,26 @@ PROFILE_CATALOGUE = {
         "density": 7850.0,
         "cost_per_kg": 1.50,
     },
+    "HEA 180 / IPBl 180": {
+        "A_mm2": 4530.0,
+        "I_mm4": 25.10e6,
+        "W_mm3": 294.0e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
     "HEA 200 / IPBl 200": {
         "A_mm2": 5383.0,
         "I_mm4": 36.92e6,
         "W_mm3": 388.6e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+    "HEA 220 / IPBl 220": {
+        "A_mm2": 6430.0,
+        "I_mm4": 54.10e6,
+        "W_mm3": 515.0e3,
         "E": 210e9,
         "density": 7850.0,
         "cost_per_kg": 1.50,
@@ -136,6 +135,22 @@ PROFILE_CATALOGUE = {
         "density": 7850.0,
         "cost_per_kg": 1.50,
     },
+    "HEA 260 / IPBl 260": {
+        "A_mm2": 8680.0,
+        "I_mm4": 104.0e6,
+        "W_mm3": 836.0e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+    "HEA 280 / IPBl 280": {
+        "A_mm2": 9730.0,
+        "I_mm4": 137.0e6,
+        "W_mm3": 1010.0e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
     "HEA 300 / IPBl 300": {
         "A_mm2": 11250.0,
         "I_mm4": 182.60e6,
@@ -144,14 +159,31 @@ PROFILE_CATALOGUE = {
         "density": 7850.0,
         "cost_per_kg": 1.50,
     },
+
     # ------------------------------------------------------------
-    # HEB profiles
-    # Older German designation: IPB
+    # HEB profiles (older German designation: IPB)
+    # Strong-axis properties
     # ------------------------------------------------------------
     "HEB 100 / IPB 100": {
         "A_mm2": 2604.0,
         "I_mm4": 4.495e6,
         "W_mm3": 89.91e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+    "HEB 120 / IPB 120": {
+        "A_mm2": 3400.0,
+        "I_mm4": 8.640e6,
+        "W_mm3": 144.0e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+    "HEB 140 / IPB 140": {
+        "A_mm2": 4300.0,
+        "I_mm4": 15.10e6,
+        "W_mm3": 216.0e3,
         "E": 210e9,
         "density": 7850.0,
         "cost_per_kg": 1.50,
@@ -164,10 +196,26 @@ PROFILE_CATALOGUE = {
         "density": 7850.0,
         "cost_per_kg": 1.50,
     },
+    "HEB 180 / IPB 180": {
+        "A_mm2": 6530.0,
+        "I_mm4": 38.30e6,
+        "W_mm3": 426.0e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
     "HEB 200 / IPB 200": {
         "A_mm2": 7808.0,
         "I_mm4": 56.96e6,
         "W_mm3": 569.6e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+    "HEB 220 / IPB 220": {
+        "A_mm2": 9100.0,
+        "I_mm4": 80.90e6,
+        "W_mm3": 736.0e3,
         "E": 210e9,
         "density": 7850.0,
         "cost_per_kg": 1.50,
@@ -180,6 +228,22 @@ PROFILE_CATALOGUE = {
         "density": 7850.0,
         "cost_per_kg": 1.50,
     },
+    "HEB 260 / IPB 260": {
+        "A_mm2": 11800.0,
+        "I_mm4": 149.0e6,
+        "W_mm3": 1150.0e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+    "HEB 280 / IPB 280": {
+        "A_mm2": 13100.0,
+        "I_mm4": 193.0e6,
+        "W_mm3": 1380.0e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
     "HEB 300 / IPB 300": {
         "A_mm2": 14910.0,
         "I_mm4": 251.70e6,
@@ -188,10 +252,120 @@ PROFILE_CATALOGUE = {
         "density": 7850.0,
         "cost_per_kg": 1.50,
     },
+
+    # ------------------------------------------------------------
+    # PFC profiles (parallel flange channels)
+    # Designation: depth [mm] x flange width [mm] x mass [kg/m]
+    # Strong-axis properties y-y
+    # ------------------------------------------------------------
+    "PFC 100 x 50 x 10": {
+        "A_mm2": 1300.0,
+        "I_mm4": 2.080e6,
+        "W_mm3": 41.5e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+    "PFC 125 x 65 x 15": {
+        "A_mm2": 1880.0,
+        "I_mm4": 4.830e6,
+        "W_mm3": 77.3e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+    "PFC 150 x 75 x 18": {
+        "A_mm2": 2280.0,
+        "I_mm4": 8.610e6,
+        "W_mm3": 115.0e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+    "PFC 150 x 90 x 24": {
+        "A_mm2": 3040.0,
+        "I_mm4": 1.162e7,
+        "W_mm3": 154.9e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+    "PFC 180 x 75 x 20": {
+        "A_mm2": 2590.0,
+        "I_mm4": 13.70e6,
+        "W_mm3": 152.0e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+    "PFC 200 x 75 x 23": {
+        "A_mm2": 2990.0,
+        "I_mm4": 19.60e6,
+        "W_mm3": 196.0e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+    "PFC 200 x 90 x 30": {
+        "A_mm2": 3790.0,
+        "I_mm4": 25.20e6,
+        "W_mm3": 252.0e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+    "PFC 230 x 75 x 26": {
+        "A_mm2": 3270.0,
+        "I_mm4": 27.50e6,
+        "W_mm3": 239.0e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+    "PFC 230 x 90 x 32": {
+        "A_mm2": 4100.0,
+        "I_mm4": 35.20e6,
+        "W_mm3": 306.0e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+    "PFC 260 x 75 x 28": {
+        "A_mm2": 3510.0,
+        "I_mm4": 36.20e6,
+        "W_mm3": 278.0e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+    "PFC 260 x 90 x 35": {
+        "A_mm2": 4440.0,
+        "I_mm4": 47.30e6,
+        "W_mm3": 364.0e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+    "PFC 300 x 90 x 41": {
+        "A_mm2": 5270.0,
+        "I_mm4": 72.20e6,
+        "W_mm3": 481.0e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+    "PFC 300 x 100 x 46": {
+        "A_mm2": 5800.0,
+        "I_mm4": 82.30e6,
+        "W_mm3": 549.0e3,
+        "E": 210e9,
+        "density": 7850.0,
+        "cost_per_kg": 1.50,
+    },
+
     # ------------------------------------------------------------
     # Circular hollow sections (CHS)
     # D x t: outside diameter x wall thickness
-    # A in mm², I in mm⁴, W in mm³
     # ------------------------------------------------------------
     "CHS 76.1 x 4 mm": {
         "A_mm2": 906.0,
@@ -257,8 +431,327 @@ PROFILE_CATALOGUE = {
         "density": 7850.0,
         "cost_per_kg": 1.50,
     },
+
+    # ============================================================
+    # ALUMINIUM
+    # Idealized sharp-corner hollow sections for teaching.
+    # Strong-axis properties; EN AW-6060-type elastic properties.
+    # ============================================================
+    "Aluminium SHS 40 x 40 x 3 mm": {
+        "A_mm2": 444.0,
+        "I_mm4": 101_972.0,
+        "W_mm3": 5_098.6,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+    "Aluminium SHS 60 x 60 x 3 mm": {
+        "A_mm2": 684.0,
+        "I_mm4": 371_412.0,
+        "W_mm3": 12_380.4,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+    "Aluminium RHS 80 x 40 x 3 mm": {
+        "A_mm2": 684.0,
+        "I_mm4": 558_532.0,
+        "W_mm3": 13_963.3,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+    "Aluminium RHS 100 x 50 x 4 mm": {
+        "A_mm2": 1136.0,
+        "I_mm4": 1_441_258.7,
+        "W_mm3": 28_825.2,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+    "Aluminium RHS 120 x 60 x 5 mm": {
+        "A_mm2": 1700.0,
+        "I_mm4": 3_094_166.7,
+        "W_mm3": 51_569.4,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+    "Aluminium RHS 160 x 80 x 5 mm": {
+        "A_mm2": 2300.0,
+        "I_mm4": 7_619_166.7,
+        "W_mm3": 95_239.6,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+    
+    # ------------------------------------------------------------
+    # Aluminium solid rectangular sections
+    # designation: height h x width b [mm]
+    # Strong-axis bending
+    # ------------------------------------------------------------
+    "Aluminium Flat 20 x 2 mm": {
+        "A_mm2": 40.0,
+        "I_mm4": 1333.33,
+        "W_mm3": 133.33,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+    "Aluminium Flat 20 x 3 mm": {
+        "A_mm2": 60.0,
+        "I_mm4": 2000.0,
+        "W_mm3": 200.0,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+    "Aluminium Flat 25 x 2 mm": {
+        "A_mm2": 50.0,
+        "I_mm4": 2604.17,
+        "W_mm3": 208.33,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+    "Aluminium Flat 25 x 3 mm": {
+        "A_mm2": 75.0,
+        "I_mm4": 3906.25,
+        "W_mm3": 312.50,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+    "Aluminium Flat 30 x 2 mm": {
+        "A_mm2": 60.0,
+        "I_mm4": 4500.0,
+        "W_mm3": 300.0,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+    "Aluminium Flat 30 x 3 mm": {
+        "A_mm2": 90.0,
+        "I_mm4": 6750.0,
+        "W_mm3": 450.0,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+    "Aluminium Flat 40 x 3 mm": {
+        "A_mm2": 120.0,
+        "I_mm4": 16000.0,
+        "W_mm3": 800.0,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+    
+    # ------------------------------------------------------------
+    # Aluminium circular hollow sections (CHS)
+    # D x t: outside diameter x wall thickness [mm]
+    # ------------------------------------------------------------
+    "Aluminium CHS 40 x 2 mm": {
+        "A_mm2": 238.76,
+        "I_mm4": 43215.75,
+        "W_mm3": 2160.79,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+    "Aluminium CHS 50 x 2 mm": {
+        "A_mm2": 301.59,
+        "I_mm4": 87009.55,
+        "W_mm3": 3480.38,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+    "Aluminium CHS 60 x 2 mm": {
+        "A_mm2": 364.42,
+        "I_mm4": 153422.82,
+        "W_mm3": 5114.09,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+    "Aluminium CHS 70 x 3 mm": {
+        "A_mm2": 631.46,
+        "I_mm4": 355038.45,
+        "W_mm3": 10143.96,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+    "Aluminium CHS 80 x 3 mm": {
+        "A_mm2": 725.71,
+        "I_mm4": 538656.69,
+        "W_mm3": 13466.42,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+    "Aluminium CHS 80 x 5 mm": {
+        "A_mm2": 1178.10,
+        "I_mm4": 832031.18,
+        "W_mm3": 20800.78,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+    "Aluminium CHS 100 x 3 mm": {
+        "A_mm2": 914.20,
+        "I_mm4": 1076246.03,
+        "W_mm3": 21524.92,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+    "Aluminium CHS 120 x 5 mm": {
+        "A_mm2": 1806.42,
+        "I_mm4": 2991876.13,
+        "W_mm3": 49864.60,
+        "E": 70e9,
+        "density": 2700.0,
+        "cost_per_kg": 4.00,
+    },
+
+    # ============================================================
+    # TIMBER
+    # Rectangular C24 profiles; larger dimension = section height.
+    # ============================================================
+    "C24 timber 60 x 120 mm": {
+        "A_mm2": 7200.0,
+        "I_mm4": 8.640e6,
+        "W_mm3": 144.0e3,
+        "E": 11.0e9,
+        "density": 420.0,
+        "cost_per_kg": 0.80,
+    },
+    "C24 timber 80 x 160 mm": {
+        "A_mm2": 12800.0,
+        "I_mm4": 27.307e6,
+        "W_mm3": 341.333e3,
+        "E": 11.0e9,
+        "density": 420.0,
+        "cost_per_kg": 0.80,
+    },
+    "C24 timber 80 x 200 mm": {
+        "A_mm2": 16000.0,
+        "I_mm4": 53.333e6,
+        "W_mm3": 533.333e3,
+        "E": 11.0e9,
+        "density": 420.0,
+        "cost_per_kg": 0.80,
+    },
+    "C24 timber 120 x 240 mm": {
+        "A_mm2": 28800.0,
+        "I_mm4": 138.240e6,
+        "W_mm3": 1152.0e3,
+        "E": 11.0e9,
+        "density": 420.0,
+        "cost_per_kg": 0.80,
+    },
 }
 
+# Material/family metadata are kept separate from the mechanical properties so
+# the solver can continue to use the flat PROFILE_CATALOGUE lookup.
+for _profile_name, _profile in PROFILE_CATALOGUE.items():
+    if _profile_name.startswith("IPE"):
+        _profile["material"] = "Steel"
+        _profile["family"] = "IPE"
+    elif _profile_name.startswith("HEA"):
+        _profile["material"] = "Steel"
+        _profile["family"] = "HEA"
+    elif _profile_name.startswith("HEB"):
+        _profile["material"] = "Steel"
+        _profile["family"] = "HEB"
+    elif _profile_name.startswith("PFC"):
+        _profile["material"] = "Steel"
+        _profile["family"] = "PFC"
+    elif _profile_name.startswith("CHS"):
+        _profile["material"] = "Steel"
+        _profile["family"] = "CHS"
+    elif _profile_name.startswith("Aluminium SHS"):
+        _profile["material"] = "Aluminium"
+        _profile["family"] = "SHS"
+    elif _profile_name.startswith("Aluminium RHS"):
+        _profile["material"] = "Aluminium"
+        _profile["family"] = "RHS"
+    elif _profile_name.startswith("Aluminium Flat"):
+        _profile["material"] = "Aluminium"
+        _profile["family"] = "Flat"        
+    elif _profile_name.startswith("Aluminium CHS"):
+        _profile["material"] = "Aluminium"
+        _profile["family"] = "CHS"        
+    elif _profile_name.startswith("C24 timber"):
+        _profile["material"] = "Timber"
+        _profile["family"] = "Rectangular C24"
+
+MATERIAL_OPTIONS = ["Steel", "Aluminium", "Timber"]
+PROFILE_FAMILY_ORDER = {
+    "Steel": ["IPE", "HEA", "HEB", "PFC", "CHS"],
+    "Aluminium": ["CHS", "Flat", "SHS", "RHS"],
+    "Timber": ["Rectangular C24"],
+}
+
+
+# ------------------------------------------------------------
+# Project file import / export
+# ------------------------------------------------------------
+
+def dataframe_to_records(df):
+    """Convert a DataFrame to JSON-safe records (NaN -> null)."""
+    return json.loads(df.to_json(orient="records"))
+
+
+def dataframe_from_records(records, template_df):
+    """Restore a DataFrame while preserving the expected column order."""
+    df = pd.DataFrame(records if records is not None else [])
+
+    for column in template_df.columns:
+        if column not in df.columns:
+            df[column] = None
+
+    return df.reindex(columns=template_df.columns)
+
+
+def load_project_json(uploaded_file, expected_format):
+    """Read and validate a Beam Me Up / Trust the Truss project file."""
+    raw = uploaded_file.getvalue()
+    data = json.loads(raw.decode("utf-8-sig"))
+
+    if data.get("format") != expected_format:
+        raise ValueError(
+            f"This is not a valid {expected_format} project file."
+        )
+
+    if "inputs" not in data or not isinstance(data["inputs"], dict):
+        raise ValueError("The project file does not contain an 'inputs' section.")
+
+    token = hashlib.sha256(raw).hexdigest()[:12]
+    return data, token
+
+
+def build_project_json(project_format, app_name, input_tables):
+    """Create a portable JSON project file from the current model input."""
+    project = {
+        "format": project_format,
+        "version": 1,
+        "app": app_name,
+        "inputs": {
+            name: dataframe_to_records(df)
+            for name, df in input_tables.items()
+        },
+    }
+
+    return json.dumps(
+        project,
+        indent=2,
+        ensure_ascii=False,
+        allow_nan=False,
+    )
 
 # ============================================================
 # Helper functions
@@ -282,6 +775,46 @@ def clean_string(value):
     if pd.isna(value):
         return ""
     return str(value).strip()
+
+
+def profile_families(material):
+    """Returns profile families in a stable, teaching-friendly order."""
+    available = {
+        props.get("family", "")
+        for props in PROFILE_CATALOGUE.values()
+        if props.get("material") == material
+    }
+    return [
+        family
+        for family in PROFILE_FAMILY_ORDER.get(material, [])
+        if family in available
+    ]
+
+
+def profiles_for_material_family(material, family):
+    """Returns profile names for the selected material and family."""
+    return [
+        name
+        for name, props in PROFILE_CATALOGUE.items()
+        if props.get("material") == material and props.get("family") == family
+    ]
+
+
+def formatted_profile_table(material, family):
+    """Creates a readable profile table for the interface."""
+    rows = []
+    for name in profiles_for_material_family(material, family):
+        props = PROFILE_CATALOGUE[name]
+        rows.append({
+            "Profile": name,
+            "A [mm²]": f"{props['A_mm2']:,.1f}",
+            "I [mm⁴]": f"{props['I_mm4']:,.1f}",
+            "W [mm³]": f"{props['W_mm3']:,.1f}",
+            "E [GPa]": f"{props['E'] / 1e9:.1f}",
+            "Density [kg/m³]": f"{props['density']:,.0f}",
+            "Cost [EUR/kg]": f"{props['cost_per_kg']:.2f}",
+        })
+    return pd.DataFrame(rows)
 
 
 def characteristic_length(nodes_df):
@@ -346,25 +879,42 @@ def equivalent_uniform_load_local(qx, qy, L):
     ], dtype=float)
 
 
-def apply_moment_releases(k_full, f_full, release_i=False, release_j=False):
+def apply_element_releases(k_full, f_full, released):
     """
-    Moment releases are implemented by static condensation of the
-    corresponding local rotational element DOFs.
+    Applies arbitrary local member-end releases by static condensation.
 
-    Released local DOFs:
-    - theta_i: index 2
-    - theta_j: index 5
+    Local element DOF numbering:
+        0 = u_i       axial displacement at end i
+        1 = v_i       transverse displacement at end i
+        2 = theta_i   rotation at end i
+        3 = u_j       axial displacement at end j
+        4 = v_j       transverse displacement at end j
+        5 = theta_j   rotation at end j
+
+    Releasing a DOF enforces zero conjugate member-end force:
+        release_u   -> N = 0
+        release_v   -> Q = 0
+        release_rot -> M = 0
+
+    For the usual one-sided releases K_qq is regular. If a release
+    combination introduces an internal rigid-body mode, a least-squares
+    solution is accepted only when the zero-force release conditions are
+    still mechanically compatible.
     """
-    released = []
-    if release_i:
-        released.append(2)
-    if release_j:
-        released.append(5)
+    released = sorted(set(int(i) for i in released))
 
     if len(released) == 0:
         return k_full.copy(), f_full.copy(), released
 
+    if any(i < 0 or i > 5 for i in released):
+        raise ValueError("Invalid released local DOF index.")
+
     retained = [i for i in range(6) if i not in released]
+
+    if len(retained) == 0:
+        raise ValueError(
+            "All six local element DOFs are released. The member is completely disconnected."
+        )
 
     K_rr = k_full[np.ix_(retained, retained)]
     K_rq = k_full[np.ix_(retained, released)]
@@ -374,28 +924,51 @@ def apply_moment_releases(k_full, f_full, release_i=False, release_j=False):
     f_r = f_full[retained]
     f_q = f_full[released]
 
-    K_qq_inv = np.linalg.inv(K_qq)
+    # Solve K_qq X = [K_qr | f_q]. Using least squares also allows
+    # compatible release combinations with an internal zero-energy mode.
+    rhs = np.column_stack([K_qr, f_q])
+    solution, _, _, _ = np.linalg.lstsq(K_qq, rhs, rcond=None)
 
-    K_cond_rr = K_rr - K_rq @ K_qq_inv @ K_qr
-    f_cond_r = f_r - K_rq @ K_qq_inv @ f_q
+    residual = K_qq @ solution - rhs
+    residual_norm = float(np.linalg.norm(residual))
+    rhs_norm = max(float(np.linalg.norm(rhs)), 1.0)
+
+    if residual_norm > 1e-9 * rhs_norm:
+        raise ValueError(
+            "The selected combination of member-end releases is incompatible "
+            "with the element stiffness and/or distributed loading. "
+            "Please check the translational and rotational releases."
+        )
+
+    Kqq_inv_Kqr = solution[:, :len(retained)]
+    Kqq_inv_fq = solution[:, len(retained)]
+
+    K_cond_rr = K_rr - K_rq @ Kqq_inv_Kqr
+    f_cond_r = f_r - K_rq @ Kqq_inv_fq
 
     k_cond = np.zeros((6, 6), dtype=float)
     f_cond = np.zeros(6, dtype=float)
 
-    for a, ia in enumerate(retained):
-        f_cond[ia] = f_cond_r[a]
-        for b, ib in enumerate(retained):
-            k_cond[ia, ib] = K_cond_rr[a, b]
+    k_cond[np.ix_(retained, retained)] = K_cond_rr
+    f_cond[retained] = f_cond_r
+
+    # Suppress tiny numerical asymmetries caused by condensation.
+    k_cond = 0.5 * (k_cond + k_cond.T)
 
     return k_cond, f_cond, released
 
-
 def recover_local_displacements_with_releases(u_local_nodal, k_full, f_full, released):
     """
-    Reconstructs the internal released element rotations from the condition
-    that the released end moments are zero.
+    Recovers the local element-end displacements at released DOFs from
+    the condition that their conjugate member-end forces are zero.
+
+    For example:
+        released u     -> axial end force N = 0
+        released v     -> shear end force Q = 0
+        released theta -> bending moment M = 0
     """
     u_local = u_local_nodal.copy()
+    released = sorted(set(int(i) for i in released))
 
     if len(released) == 0:
         return u_local
@@ -407,7 +980,19 @@ def recover_local_displacements_with_releases(u_local_nodal, k_full, f_full, rel
     f_q = f_full[released]
 
     u_r = u_local[retained]
-    u_q = np.linalg.solve(K_qq, f_q - K_qr @ u_r)
+    rhs = f_q - K_qr @ u_r
+
+    u_q, _, _, _ = np.linalg.lstsq(K_qq, rhs, rcond=None)
+
+    residual = K_qq @ u_q - rhs
+    residual_norm = float(np.linalg.norm(residual))
+    rhs_norm = max(float(np.linalg.norm(rhs)), 1.0)
+
+    if residual_norm > 1e-9 * rhs_norm:
+        raise ValueError(
+            "Released element-end displacements could not be recovered. "
+            "The selected release combination is mechanically incompatible."
+        )
 
     for a, ia in enumerate(released):
         u_local[ia] = u_q[a]
@@ -422,14 +1007,10 @@ def recover_local_displacements_with_releases(u_local_nodal, k_full, f_full, rel
 def preprocess_internal_hinges(nodes_df, members_df, hinges_df):
     """
     Internal hinges are modeled by splitting the corresponding member and
-    applying moment releases at the generated hinge node.
+    applying rotational releases at both generated member ends.
 
-    A hinge at xi = 0.5 divides member M1 into:
-    M1_1 and M1_2
-
-    Moment release:
-    - end j of M1_1
-    - end i of M1_2
+    Translational continuity is retained at the hinge, i.e. the hinge
+    transfers normal force N and shear force Q but no bending moment M.
     """
     nodes_out = nodes_df.copy()
     members_out = []
@@ -471,14 +1052,29 @@ def preprocess_internal_hinges(nodes_df, members_df, hinges_df):
         if member_id == "" or node_i == "" or node_j == "":
             continue
 
-        release_i_original = to_bool(member.get("release_i", False))
-        release_j_original = to_bool(member.get("release_j", False))
+        # New release definition. The fallback to release_i/release_j keeps
+        # older saved tables compatible by interpreting them as moment releases.
+        release_u_i_original = to_bool(member.get("release_u_i", False))
+        release_v_i_original = to_bool(member.get("release_v_i", False))
+        release_rot_i_original = to_bool(
+            member.get("release_rot_i", member.get("release_i", False))
+        )
+
+        release_u_j_original = to_bool(member.get("release_u_j", False))
+        release_v_j_original = to_bool(member.get("release_v_j", False))
+        release_rot_j_original = to_bool(
+            member.get("release_rot_j", member.get("release_j", False))
+        )
 
         if member_id not in hinges_by_member:
             row = member.copy()
             row["source_member"] = member_id
-            row["release_i"] = release_i_original
-            row["release_j"] = release_j_original
+            row["release_u_i"] = release_u_i_original
+            row["release_v_i"] = release_v_i_original
+            row["release_rot_i"] = release_rot_i_original
+            row["release_u_j"] = release_u_j_original
+            row["release_v_j"] = release_v_j_original
+            row["release_rot_j"] = release_rot_j_original
             members_out.append(row)
             continue
 
@@ -513,21 +1109,32 @@ def preprocess_internal_hinges(nodes_df, members_df, hinges_df):
         split_nodes.append((1.0, node_j))
 
         for k in range(len(split_nodes) - 1):
-            start_is_hinge = k > 0
-            end_is_hinge = k < len(split_nodes) - 2
-
             new_member = member.copy()
             new_member["member"] = f"{member_id}_{k + 1}"
             new_member["source_member"] = member_id
             new_member["node_i"] = split_nodes[k][1]
             new_member["node_j"] = split_nodes[k + 1][1]
-            new_member["release_i"] = release_i_original if k == 0 else True
-            new_member["release_j"] = release_j_original if k == len(split_nodes) - 2 else True
 
-            if start_is_hinge:
-                new_member["release_i"] = True
-            if end_is_hinge:
-                new_member["release_j"] = True
+            # Preserve the original releases only at the original outer ends.
+            # At a generated internal hinge, translations remain continuous and
+            # only rotation is released on both adjacent element ends.
+            if k == 0:
+                new_member["release_u_i"] = release_u_i_original
+                new_member["release_v_i"] = release_v_i_original
+                new_member["release_rot_i"] = release_rot_i_original
+            else:
+                new_member["release_u_i"] = False
+                new_member["release_v_i"] = False
+                new_member["release_rot_i"] = True
+
+            if k == len(split_nodes) - 2:
+                new_member["release_u_j"] = release_u_j_original
+                new_member["release_v_j"] = release_v_j_original
+                new_member["release_rot_j"] = release_rot_j_original
+            else:
+                new_member["release_u_j"] = False
+                new_member["release_v_j"] = False
+                new_member["release_rot_j"] = True
 
             members_out.append(new_member)
 
@@ -631,14 +1238,31 @@ def solve_frame(nodes_df, members_df, supports_df, nodal_loads_df, distributed_l
         k_full_local = local_frame_stiffness(E, A, I, L)
         f_full_local = equivalent_uniform_load_local(qx, qy, L)
 
-        release_i = to_bool(member.get("release_i", False))
-        release_j = to_bool(member.get("release_j", False))
+        release_u_i = to_bool(member.get("release_u_i", False))
+        release_v_i = to_bool(member.get("release_v_i", False))
+        release_rot_i = to_bool(member.get("release_rot_i", member.get("release_i", False)))
+        release_u_j = to_bool(member.get("release_u_j", False))
+        release_v_j = to_bool(member.get("release_v_j", False))
+        release_rot_j = to_bool(member.get("release_rot_j", member.get("release_j", False)))
 
-        k_cond_local, f_cond_local, released = apply_moment_releases(
+        released = []
+        if release_u_i:
+            released.append(0)
+        if release_v_i:
+            released.append(1)
+        if release_rot_i:
+            released.append(2)
+        if release_u_j:
+            released.append(3)
+        if release_v_j:
+            released.append(4)
+        if release_rot_j:
+            released.append(5)
+
+        k_cond_local, f_cond_local, released = apply_element_releases(
             k_full_local,
             f_full_local,
-            release_i=release_i,
-            release_j=release_j,
+            released,
         )
 
         T = transformation_matrix(c, s)
@@ -676,8 +1300,12 @@ def solve_frame(nodes_df, members_df, supports_df, nodal_loads_df, distributed_l
             "k_full_local": k_full_local,
             "f_full_local": f_full_local,
             "released": released,
-            "release_i": release_i,
-            "release_j": release_j,
+            "release_u_i": release_u_i,
+            "release_v_i": release_v_i,
+            "release_rot_i": release_rot_i,
+            "release_u_j": release_u_j,
+            "release_v_j": release_v_j,
+            "release_rot_j": release_rot_j,
             "qx": qx,
             "qy": qy,
             "A_m2": A,
@@ -833,8 +1461,12 @@ def solve_frame(nodes_df, members_df, supports_df, nodal_loads_df, distributed_l
             "node_j": element["node_j"],
             "profile": element["profile"],
             "length_m": L,
-            "release_i": element["release_i"],
-            "release_j": element["release_j"],
+            "release_u_i": element["release_u_i"],
+            "release_v_i": element["release_v_i"],
+            "release_rot_i": element["release_rot_i"],
+            "release_u_j": element["release_u_j"],
+            "release_v_j": element["release_v_j"],
+            "release_rot_j": element["release_rot_j"],
             "N_start_N": N[0],
             "N_end_N": N[-1],
             "Q_start_N": Q[0],
@@ -1023,27 +1655,41 @@ def plot_structure(nodes_df, members_df, title="Structure"):
             name=str(member["member"]),
         ))
 
-        if to_bool(member.get("release_i", False)):
-            fig.add_trace(go.Scatter(
-                x=[xi],
-                y=[yi],
-                mode="markers",
-                marker=dict(size=12, symbol="circle-open"),
-                showlegend=False,
-                hovertext=f"Moment release at {member['member']} / node {ni}",
-                name="Moment release",
-            ))
+        # Visualize member-end releases with different open marker symbols.
+        # u-release: diamond, v-release: square, rotational release: circle.
+        release_markers = [
+            ("release_u_i", xi, yi, ni, "diamond-open", 11, "Local axial release (N = 0)"),
+            ("release_v_i", xi, yi, ni, "square-open", 9, "Local transverse release (Q = 0)"),
+            ("release_rot_i", xi, yi, ni, "circle-open", 14, "Rotational release (M = 0)"),
+            ("release_u_j", xj, yj, nj, "diamond-open", 11, "Local axial release (N = 0)"),
+            ("release_v_j", xj, yj, nj, "square-open", 9, "Local transverse release (Q = 0)"),
+            ("release_rot_j", xj, yj, nj, "circle-open", 14, "Rotational release (M = 0)"),
+        ]
 
-        if to_bool(member.get("release_j", False)):
-            fig.add_trace(go.Scatter(
-                x=[xj],
-                y=[yj],
-                mode="markers",
-                marker=dict(size=12, symbol="circle-open"),
-                showlegend=False,
-                hovertext=f"Moment release at {member['member']} / node {nj}",
-                name="Moment release",
-            ))
+        for key, xr, yr, node_r, symbol, size, description in release_markers:
+            # Backward compatibility for old release_i/release_j columns applies
+            # only to rotational releases.
+            if key == "release_rot_i":
+                active = to_bool(member.get(key, member.get("release_i", False)))
+            elif key == "release_rot_j":
+                active = to_bool(member.get(key, member.get("release_j", False)))
+            else:
+                active = to_bool(member.get(key, False))
+
+            if active:
+                fig.add_trace(go.Scatter(
+                    x=[xr],
+                    y=[yr],
+                    mode="markers",
+                    marker=dict(size=size, symbol=symbol),
+                    showlegend=False,
+                    hovertext=(
+                        f"{description}<br>"
+                        f"member {member['member']} / node {node_r}"
+                    ),
+                    hovertemplate="%{hovertext}<extra></extra>",
+                    name="Member-end release",
+                ))
 
     fig.add_trace(go.Scatter(
         x=[node_xy[n][0] for n in node_xy],
@@ -1367,6 +2013,9 @@ def show_header_image(filename, caption=None):
 # Streamlit app
 # ============================================================
 
+APP_VERSION = "1.0.0"
+APP_RELEASE_DATE = "October 2026"
+
 st.set_page_config(page_title="Beam Me Up", layout="wide")
 
 show_header_image("beam_me_up_header.png")
@@ -1374,19 +2023,16 @@ show_header_image("beam_me_up_header.png")
 st.title("Beam Me Up")
 
 st.caption(
-    "An interactive beam analysis tool for teaching and learning structural mechanics"
+    "An interactive beam analysis tool for teaching and learning structural mechanics | Version {APP_VERSION} ({APP_RELEASE_DATE})"
 )
 
 with st.expander("How to use the interface", expanded=False):
     st.markdown(
         """
         This app analyzes planar beam and frame structures using Euler-Bernoulli beam elements.
-        Each node has three degrees of freedom: horizontal displacement `ux`, vertical displacement `uy`,
-        and rotation `rot`.
+        Each node has three degrees of freedom: horizontal displacement `ux`, vertical displacement `uy`, and rotation `rot`.
 
-        The predefined entries form a small example beam. They are only intended as a guide and can
-        be overwritten. You can rename nodes and members directly in the tables by replacing labels
-        such as `A`, `B`, or `B1`.
+        The predefined entries form a small example beam. They are only intended as a guide and can be overwritten. You can rename nodes and members directly in the tables by replacing labels such as `A`, `B`, or `B1`.
 
         **Nodes**  
         Enter the node labels and their Cartesian coordinates `x` and `y`.
@@ -1398,52 +2044,48 @@ with st.expander("How to use the interface", expanded=False):
         - the geometry changes direction, for example at a kink or corner of a frame,
         - several members are connected at that point,
 
-        **Members**  
-        Define each beam or frame member by specifying its start node `node_i`, its end node `node_j`,
-        and a profile. The options `release_i` and `release_j` create moment releases at the
-        corresponding member ends. 'True' means, the specific member cannot transfer moments at ist end
-        i and/or j.
+        **Members, materials, profiles, and member-end releases**  
+        Define each beam or frame member by specifying its start node `node_i` and its end node `node_j`. The material and profile are assigned directly below the member table. First choose the material, then the profile family, and finally the specific profile. Each member end can have three independent local releases:
+
+        - `release_u_i` / `release_u_j`: releases the local axial displacement → no normal force `N` is transferred at that member end.
+        - `release_v_i` / `release_v_j`: releases the local transverse displacement → no shear force `Q` is transferred at that member end.
+        - `release_rot_i` / `release_rot_j`: releases the local rotation → no bending moment `M` is transferred at that member end.
+
+        The directions `u` and `v` refer to the **local member coordinate system**: `u` is parallel to the member axis and `v` is perpendicular to it. Releases may be specified independently at the two ends. This allows, for example, hinged member connections or idealized sliding-sleeve connections. A longitudinal sliding sleeve that transfers shear force and bending moment but no normal force is modeled by setting only the corresponding `release_u` to `True`.
 
         **Supports**  
-        Use `fix_x`, `fix_y`, and `fix_rot` to restrain horizontal displacement, vertical displacement,
-        and rotation. A full clamped support is obtained by activating all three options.
+        Use `fix_x`, `fix_y`, and `fix_rot` to restrain horizontal displacement, vertical displacement, and rotation. A full clamped support is obtained by activating all three options.
 
         **Nodal loads**  
         Enter external nodal loads as `Fx`, `Fy`, and `Mz`.
 
         **Distributed loads**  
-        Enter constant distributed loads in the local member coordinate system. For a horizontal member
-        from left to right, local `y` points upward. Therefore, a downward vertical load is usually
-        entered as a negative `qy_local`.
+        Enter constant distributed loads in the local member coordinate system. For a horizontal member from left to right, local `y` points upward. Therefore, a downward vertical load is usually entered as a negative `qy_local`.
 
         **Internal hinges**  
-        Internal hinges can be positioned along a member by entering the member name and the relative
-        coordinate `xi`, where `xi = 0` is the start node and `xi = 1` is the end node. The app splits
-        the member internally and applies moment releases at the generated hinge node.
+        Internal hinges can be positioned along a member by entering the member name and the relative coordinate `xi`, where `xi = 0` is the start node and `xi = 1` is the end node. The app splits the member internally and applies rotational releases to both adjacent member ends. Translational continuity is retained, so the hinge can transfer normal force and shear force but no bending moment.
 
         **Adding entries**  
-        Click the `+` symbol in the bottom row of each table to add new nodes, members, supports,
-        loads, or internal hinges.
+        Click the `+` symbol in the bottom row of each table to add new nodes, members, supports, loads, or internal hinges.
+
+        **Save / load complete model**  
+        Use the project-file controls above the input tables to save the complete current model as a JSON file or to load a previously saved model. The project file contains nodes, members, releases, material/profile assignments, supports, nodal loads, distributed loads, and internal hinges. After loading a project, click **Calculate frame** to recompute the results.
 
         **Calculation**  
-        Click **Calculate frame** to compute displacements, reactions, section-force diagrams,
-        stresses, mass, and estimated costs.
+        Click **Calculate frame** to compute displacements, reactions, section-force diagrams, stresses, mass, and estimated costs.
         """
     )
 
 with st.expander("Model assumptions and limitations", expanded=False):
     st.markdown(
         """
-        The current version uses a linear-elastic Euler-Bernoulli beam formulation.
-        It assumes small displacements, straight members, constant cross-sections per member,
-        and constant distributed loads in local element directions.
+        The current version uses a linear-elastic Euler-Bernoulli beam formulation. It assumes small displacements, straight members, constant cross-sections per member, and constant distributed loads in local element directions.
 
-        The app currently does not include shear deformation, geometrical nonlinearity, plasticity,
-        buckling checks, nonlinear supports, moving loads, or code-compliant structural design checks.
+        Member-end translational releases act in the local coordinate system of each member. Arbitrarily oriented sliding directions that are independent of the member axis are not included in the current version.
 
-        Sign convention: `N > 0` denotes tension. The plotted `Q` and `M` diagrams follow the local
-        element convention. For a simply supported horizontal beam with downward `qy_local < 0`,
-        the sagging bending moment appears positive.
+        The app currently does not include shear deformation, geometrical nonlinearity, plasticity, buckling checks, nonlinear supports, moving loads, or code-compliant structural design checks.
+
+        Sign convention: `N > 0` denotes tension. The plotted `Q` and `M` diagrams follow the local element convention. For a simply supported horizontal beam with downward `qy_local < 0`, the sagging bending moment appears positive.
         """
     )
 
@@ -1454,16 +2096,13 @@ with st.expander("License, attribution, and disclaimer", expanded=False):
         © 2026 Thorsten Bartel.
 
         **AI-assisted development**  
-        The concept, user interface structure, and parts of the Python/Streamlit implementation were
-        developed with assistance from OpenAI ChatGPT, GPT-5.5 Thinking, June 2026.
+        The concept, user interface structure, and parts of the Python/Streamlit implementation were developed with assistance from OpenAI ChatGPT, GPT-5.5 Thinking, June 2026.
 
         **Third-party software**  
-        This app is implemented in Python using Streamlit, NumPy, pandas, and Plotly. These packages
-        are distributed under their respective open-source licenses.
+        This app is implemented in Python using Streamlit, NumPy, pandas, and Plotly. These packages are distributed under their respective open-source licenses.
 
         **Disclaimer**  
-        This app is intended for teaching and demonstration purposes only. It does not replace
-        professional engineering verification, safety assessment, or code-compliant structural design.
+        This app is intended for teaching and demonstration purposes only. It does not replace professional engineering verification, safety assessment, or code-compliant structural design.
         """
     )
 
@@ -1482,9 +2121,12 @@ default_members = pd.DataFrame({
     "member": ["B1"],
     "node_i": ["A"],
     "node_j": ["B"],
-    "profile": ["Generic steel medium"],
-    "release_i": [False],
-    "release_j": [False],
+    "release_u_i": [False],
+    "release_v_i": [False],
+    "release_rot_i": [False],
+    "release_u_j": [False],
+    "release_v_j": [False],
+    "release_rot_j": [False],
 })
 
 default_supports = pd.DataFrame({
@@ -1513,6 +2155,70 @@ default_hinges = pd.DataFrame({
     "hinge_node": ["H1"],
 })
 
+# Complete member representation used in project files.
+default_members_project = default_members.copy()
+default_members_project["material"] = ["Steel"]
+default_members_project["profile"] = ["IPE 200"]
+
+# ------------------------------------------------------------
+# Project file: load complete model
+# ------------------------------------------------------------
+
+st.write("### Save / load complete model")
+uploaded_project = st.file_uploader(
+    "Load a Beam Me Up project file",
+    type=["json"],
+    key="beam_project_upload",
+    help=(
+        "Load a previously exported project file. Nodes, members, member-end releases, "
+        "material/profile assignments, supports, loads, and internal hinges are restored."
+    ),
+)
+
+project_token = "default"
+initial_nodes = default_nodes.copy()
+initial_members_full = default_members_project.copy()
+initial_members_geometry = default_members.copy()
+initial_supports = default_supports.copy()
+initial_nodal_loads = default_nodal_loads.copy()
+initial_distributed_loads = default_distributed_loads.copy()
+initial_hinges = default_hinges.copy()
+
+if uploaded_project is not None:
+    try:
+        project_data, project_token = load_project_json(
+            uploaded_project,
+            expected_format="beam_me_up_project",
+        )
+        project_inputs = project_data["inputs"]
+
+        initial_nodes = dataframe_from_records(
+            project_inputs.get("nodes"), default_nodes
+        )
+        initial_members_full = dataframe_from_records(
+            project_inputs.get("members"), default_members_project
+        )
+        initial_members_geometry = initial_members_full.reindex(
+            columns=default_members.columns
+        )
+        initial_supports = dataframe_from_records(
+            project_inputs.get("supports"), default_supports
+        )
+        initial_nodal_loads = dataframe_from_records(
+            project_inputs.get("nodal_loads"), default_nodal_loads
+        )
+        initial_distributed_loads = dataframe_from_records(
+            project_inputs.get("distributed_loads"), default_distributed_loads
+        )
+        initial_hinges = dataframe_from_records(
+            project_inputs.get("hinges"), default_hinges
+        )
+
+        st.success("Project file loaded. The model input has been restored.")
+
+    except Exception as e:
+        st.error(f"Project file could not be loaded: {e}")
+        project_token = "default"
 
 left, right = st.columns([1, 1])
 
@@ -1521,58 +2227,218 @@ with left:
 
     st.write("### Nodes")
     nodes_df = st.data_editor(
-        default_nodes,
+        initial_nodes,
         num_rows="dynamic",
         width="stretch",
+        key=f"beam_nodes_editor_{project_token}",
     )
 
     st.write("### Members")
-    members_df = st.data_editor(
-        default_members,
+    members_geometry_df = st.data_editor(
+        initial_members_geometry,
         num_rows="dynamic",
         width="stretch",
-        column_config={
-            "profile": st.column_config.SelectboxColumn(
-                "profile",
-                options=list(PROFILE_CATALOGUE.keys()),
-            )
-        },
+        key=f"beam_members_editor_{project_token}",
     )
+
+    st.write("### Member materials and profiles")
+    st.caption(
+        "Select material, profile family, and profile for each member. "
+        "The available profiles are filtered by the preceding selections."
+    )
+
+    members_df = members_geometry_df.copy()
+    selected_materials = []
+    selected_profiles = []
+
+    head_member, head_material, head_family, head_profile = st.columns([1.0, 1.1, 1.1, 2.0])
+    head_member.caption("Member")
+    head_material.caption("Material")
+    head_family.caption("Profile family")
+    head_profile.caption("Profile")
+
+    for idx, row in members_df.iterrows():
+        member_id = clean_string(row.get("member", ""))
+
+        if member_id == "":
+            selected_materials.append("")
+            selected_profiles.append("")
+            continue
+
+        safe_member_id = "".join(ch if ch.isalnum() else "_" for ch in member_id)
+        key_base = f"{project_token}_member_{idx}_{safe_member_id}"
+
+        # Defaults from an imported project file (or from the built-in example).
+        imported_material = ""
+        imported_profile = ""
+        if idx < len(initial_members_full):
+            imported_material = clean_string(initial_members_full.iloc[idx].get("material", ""))
+            imported_profile = clean_string(initial_members_full.iloc[idx].get("profile", ""))
+
+        if imported_profile in PROFILE_CATALOGUE:
+            if imported_material not in MATERIAL_OPTIONS:
+                imported_material = PROFILE_CATALOGUE[imported_profile].get("material", "Steel")
+        else:
+            imported_profile = ""
+
+        if imported_material not in MATERIAL_OPTIONS:
+            imported_material = "Steel"
+
+        col_member, col_material, col_family, col_profile = st.columns([1.0, 1.1, 1.1, 2.0])
+
+        with col_member:
+            st.markdown(f"**{member_id}**")
+
+        material_key = f"{key_base}_material"
+        material_index = MATERIAL_OPTIONS.index(imported_material)
+        with col_material:
+            material = st.selectbox(
+                "Material",
+                MATERIAL_OPTIONS,
+                index=material_index,
+                key=material_key,
+                label_visibility="collapsed",
+            )
+
+        family_options = profile_families(material)
+        family_key = f"{key_base}_family"
+        if family_key in st.session_state and st.session_state[family_key] not in family_options:
+            del st.session_state[family_key]
+
+        imported_family = ""
+        if imported_profile in PROFILE_CATALOGUE:
+            imported_family = PROFILE_CATALOGUE[imported_profile].get("family", "")
+        family_index = family_options.index(imported_family) if imported_family in family_options else 0
+
+        with col_family:
+            family = st.selectbox(
+                "Profile family",
+                family_options,
+                index=family_index,
+                key=family_key,
+                label_visibility="collapsed",
+            )
+
+        profile_options = profiles_for_material_family(material, family)
+        profile_key = f"{key_base}_profile"
+        if profile_key in st.session_state and st.session_state[profile_key] not in profile_options:
+            del st.session_state[profile_key]
+
+        default_profile_index = 0
+        if imported_profile in profile_options:
+            default_profile_index = profile_options.index(imported_profile)
+        elif idx == 0 and material == "Steel" and family == "IPE" and "IPE 200" in profile_options:
+            default_profile_index = profile_options.index("IPE 200")
+
+        with col_profile:
+            profile = st.selectbox(
+                "Profile",
+                profile_options,
+                index=default_profile_index,
+                key=profile_key,
+                label_visibility="collapsed",
+            )
+
+        selected_materials.append(material)
+        selected_profiles.append(profile)
+
+    members_df["material"] = selected_materials
+    members_df["profile"] = selected_profiles
 
     st.write("### Supports")
     supports_df = st.data_editor(
-        default_supports,
+        initial_supports,
         num_rows="dynamic",
         width="stretch",
+        key=f"beam_supports_editor_{project_token}",
     )
 
     st.write("### Nodal loads")
     nodal_loads_df = st.data_editor(
-        default_nodal_loads,
+        initial_nodal_loads,
         num_rows="dynamic",
         width="stretch",
+        key=f"beam_nodal_loads_editor_{project_token}",
     )
 
     st.write("### Distributed member loads")
     distributed_loads_df = st.data_editor(
-        default_distributed_loads,
+        initial_distributed_loads,
         num_rows="dynamic",
         width="stretch",
+        key=f"beam_distributed_loads_editor_{project_token}",
     )
 
     st.write("### Internal hinges")
     hinges_df = st.data_editor(
-        default_hinges,
+        initial_hinges,
         num_rows="dynamic",
         width="stretch",
+        key=f"beam_hinges_editor_{project_token}",
+    )
+
+    project_json = build_project_json(
+        "beam_me_up_project",
+        "Beam Me Up",
+        {
+            "nodes": nodes_df,
+            "members": members_df,
+            "supports": supports_df,
+            "nodal_loads": nodal_loads_df,
+            "distributed_loads": distributed_loads_df,
+            "hinges": hinges_df,
+        },
+    )
+
+    st.download_button(
+        "Download complete model",
+        data=project_json,
+        file_name="beam_me_up_project.json",
+        mime="application/json",
+        width="stretch",
+        help="Save the complete current model so it can be loaded again later.",
     )
 
 with right:
     st.subheader("Profile catalogue")
 
-    profile_table = pd.DataFrame(PROFILE_CATALOGUE).T.reset_index()
-    profile_table = profile_table.rename(columns={"index": "profile"})
-    st.dataframe(profile_table, width="stretch")
+    catalogue_material = st.selectbox(
+        "Material",
+        MATERIAL_OPTIONS,
+        key="catalogue_material",
+    )
+
+    catalogue_families = profile_families(catalogue_material)
+    if "catalogue_family" in st.session_state and st.session_state["catalogue_family"] not in catalogue_families:
+        del st.session_state["catalogue_family"]
+
+    catalogue_family = st.selectbox(
+        "Profile family",
+        catalogue_families,
+        key="catalogue_family",
+    )
+
+    profile_table = formatted_profile_table(catalogue_material, catalogue_family)
+    st.dataframe(profile_table, width="stretch", hide_index=True)
+
+    if catalogue_material == "Aluminium":
+        st.caption(
+            "Aluminium SHS/RHS properties are idealized teaching values based on nominal "
+            "sharp-corner hollow-section geometry. E = 70 GPa and density = 2700 kg/m³."
+        )
+    elif catalogue_material == "Timber":
+        st.caption(
+            "C24 timber profiles are rectangular teaching profiles. The larger dimension "
+            "is assumed to be the section height in the bending direction."
+        )
+    elif catalogue_family == "PFC":
+        st.caption(
+            "For PFC profiles, the designation is depth [mm] × flange width [mm] × mass [kg/m]."
+        )
+
+    st.caption(
+        "Material costs are illustrative assumptions for teaching and comparison, not current market prices."
+    )
 
     st.subheader("Structure preview")
     try:
@@ -1632,8 +2498,6 @@ if st.session_state.frame_results is not None:
             "This can occur at pure hinge rotations."
         )
 
-    st.subheader("Section-force diagrams")
-
     st.subheader("Deformed shape")
 
     deformation_scale = st.slider(
@@ -1652,6 +2516,8 @@ if st.session_state.frame_results is not None:
         ),
         width="stretch",
     )
+
+    st.subheader("Section-force diagrams")
 
     diagram_scale = st.slider(
         "Diagram scale factor",
